@@ -40,7 +40,7 @@ def make_logger(logdir, step, config):
     outputs = [
         embodied.logger.TerminalOutput(config.filter),
         embodied.logger.JSONLOutput(logdir, "metrics.jsonl"),
-        embodied.logger.JSONLOutput(logdir, "scores.jsonl", "episode/score"),
+        embodied.logger.JSONLOutput(logdir, "scores.jsonl", r".*episode/score"),
         # embodied.logger.MLFlowOutput(logdir.name),
     ]
     if config.tensorboard_logging:
