@@ -119,7 +119,7 @@ defaults:
     minecraft: {size: [64, 64], break_speed: 100.0}
     dmc: {size: [64, 64], repeat: 2, camera: -1}
     loconav: {size: [64, 64], repeat: 2, camera: -1}
-
+    pinpad: {length: 10000}
 
   # Model
   dynamics_model: "s5"
@@ -273,6 +273,18 @@ atari100k:
   imag_gradient: 'reinforce'
   time_limit: 54000
 
+pinpad:
+  steps: 4e5
+  envs:
+    amount: 1
+  action_repeat: 2
+  eval_every: 5e4
+  eval_eps: 10
+  log_every: 1e3
+  batch_size: 8
+  batch_length: 16
+  train_ratio: 512
+  wandb_logging: false
 
 debug:
   debug: True
