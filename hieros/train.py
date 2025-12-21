@@ -172,7 +172,6 @@ def main(config):
             config,
             train_replay,
         ).to(config.device)
-        agent.requires_grad_(requires_grad=False)
     else:
         agent = Hieros(
             train_envs.obs_space,
