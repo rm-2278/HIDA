@@ -205,7 +205,7 @@ def main(config):
             agent.train()
     config.batch_steps = config.batch_size * config.batch_length
 
-    embodied.run.train_eval(agent, train_envs, eval_envs, None, None, logger, config)
+    embodied.run.train_eval(agent, train_envs, eval_envs, train_replay, None, logger, config)
 
     if config.autoregressive_evalution:
         if config.model_name == "hieros":
