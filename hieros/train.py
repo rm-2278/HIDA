@@ -149,7 +149,7 @@ def main(config):
             if o["is_last"].any():
                 mask = 1 - o["is_last"]
                 acts = {
-                    k: v * expand(mask, len(v.shape)) for k, v in random_action.items() if k != "reset"
+                    k: v * expand(mask, len(v.shape)) for k, v in acts.items() if k != "reset"
                 }
             
             # Use agent's reset decision OR environment's is_last signal

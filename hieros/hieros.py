@@ -964,9 +964,9 @@ class SubActor(nn.Module):
             )
         action = self._exploration(action, training)
         
-        # Add reset action output - default to False, agent currently doesn't learn to reset
-        # This enables the capability for future enhancement where agent can learn to reset
-        # For now, maintains backward compatibility by defaulting to False
+        # Add reset action output - enables agent to control environment reset
+        # By default, reset is False to maintain backward compatibility
+        # The agent can learn to output reset=True to reset the environment early
         reset = torch.zeros(action.shape[0], dtype=torch.bool, device=self._config.device)
         
         if training:
