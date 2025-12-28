@@ -49,10 +49,13 @@ class TimeBalanced:
         self.keys = []
         self.rng = np.random.default_rng(seed)
         self.bias_factor = bias_factor
+        # Use seeded torch generator for reproducibility
+        self.torch_generator = torch.Generator()
+        self.torch_generator.manual_seed(seed)
         self.distribution = torch.distributions.Beta(self.bias_factor, 1)
 
     def __call__(self):
-        sample = self.distribution.sample()
+        sample = self.distribution.sample(generator=self.torch_generator)
         index = int(sample * len(self.keys))
         return self.keys[index]
 
@@ -78,6 +81,9 @@ class TimeBalancedNaive:
         self.key_counts = []
         self.sample_count = 1
         self.is_counter = 0
+        # Use seeded torch generator for reproducibility
+        self.torch_generator = torch.Generator()
+        self.torch_generator.manual_seed(seed)
 
     def __call__(self):
         if self.sample_count <= 1:
@@ -85,7 +91,7 @@ class TimeBalancedNaive:
         else:
             probs = -1 * (torch.tensor(self.key_counts) / self.bias_factor)
             probs = torch.softmax(probs, dim=0)
-            index = torch.distributions.Categorical(probs=probs).sample().item()
+            index = torch.distributions.Categorical(probs=probs).sample(generator=self.torch_generator).item()
         self.key_counts[index] += 1
         self.sample_count += 1
         return self.keys[index]

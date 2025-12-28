@@ -101,7 +101,7 @@ defaults:
   autoregressive_evalution: false
   store_checkpoints: false
 
-  data_loaders: 8
+  data_loaders: 0
 
   # replay: efficienttimebalanced
   # replay: timebalancednaive

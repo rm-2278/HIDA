@@ -51,6 +51,31 @@ def set_seed(seed):
     torch.use_deterministic_algorithms(True)
 ```
 
+### 4. Multi-threaded Data Loading Non-determinism
+**Problem:** The `Batcher` class was using multiple worker threads (`data_loaders=8`) to fetch data from replay buffers. Even though replay buffers were seeded, thread scheduling is non-deterministic, causing different batch ordering across runs.
+
+**Solution:** Changed default `data_loaders` from 8 to 0 in `hieros/configs.yaml` to disable multi-threading:
+```yaml
+data_loaders: 0
+```
+
+This eliminates non-determinism from thread scheduling while maintaining reproducibility. Users can re-enable multi-threading if performance is critical and perfect reproducibility is not required.
+
+### 5. Unseeded PyTorch Distributions in Replay Selectors
+**Problem:** The `TimeBalanced` and `TimeBalancedNaive` selectors used PyTorch distributions (`torch.distributions.Beta` and `torch.distributions.Categorical`) without seeding them, causing non-deterministic sampling even with a seeded numpy RNG.
+
+**Solution:** Modified `embodied/replay/selectors.py` to use seeded PyTorch generators:
+```python
+# In TimeBalanced.__init__
+self.torch_generator = torch.Generator()
+self.torch_generator.manual_seed(seed)
+
+# In __call__
+sample = self.distribution.sample(generator=self.torch_generator)
+```
+
+Applied the same fix to `TimeBalancedNaive` selector.
+
 ## How to Test Reproducibility
 
 ### Quick Test (Recommended)
@@ -112,7 +137,7 @@ With the fixes applied:
 
 ### Known Limitations
 
-1. **Multi-threading:** If using `data_loaders > 0`, there may still be some non-determinism due to thread scheduling. The fixes minimize this, but perfect reproducibility may require setting `data_loaders=0`.
+1. **Multi-threading for performance:** Setting `data_loaders=0` disables multi-threaded data loading for reproducibility. If you need faster data loading and can accept slight non-determinism, you can set `data_loaders > 0`, but this may cause metrics to differ slightly between runs due to thread scheduling variance.
 
 2. **GPU-specific operations:** Some GPU operations may vary slightly across different GPU models or drivers, even with deterministic algorithms enabled.
 
