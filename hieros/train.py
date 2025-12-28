@@ -239,7 +239,8 @@ def make_envs(config, **overrides):
     suite, task = config.task.split("_", 1)
     ctors = []
     for index in range(config.envs["amount"]):
-        ctor = lambda: make_env(config, **overrides)
+        # Create a closure that captures the index to provide unique seeds
+        ctor = lambda idx=index: make_env(config, env_index=idx, **overrides)
         if config.envs["parallel"] != "none":
             ctor = functools.partial(embodied.Parallel, ctor, config.envs["parallel"])
         if config.envs["restart"]:
@@ -249,7 +250,7 @@ def make_envs(config, **overrides):
     return embodied.BatchEnv(envs, parallel=(config.envs["parallel"] != "none"))
 
 
-def make_env(config, **overrides):
+def make_env(config, env_index=0, **overrides):
     # You can add custom environments by creating and returning the environment
     # instance here. Environments with different interfaces can be converted
     # using `embodied.envs.from_gym.FromGym` and `embodied.envs.from_dm.FromDM`.
@@ -276,8 +277,9 @@ def make_env(config, **overrides):
     kwargs = config.env.get(suite, {})
     kwargs.update(overrides)
     # Add seed to environment kwargs if available in config and not already present
+    # Each environment gets a unique seed based on the base seed and its index
     if hasattr(config, 'seed') and 'seed' not in kwargs:
-        kwargs['seed'] = config.seed
+        kwargs['seed'] = config.seed + env_index
     env = ctor(task, **kwargs)
     return wrap_env(env, config)
 

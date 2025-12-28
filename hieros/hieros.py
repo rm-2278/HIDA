@@ -1127,8 +1127,9 @@ def make_replay(config, directory=None, is_eval=False, rate_limit=False, **kwarg
     assert config.replay == "uniform" or not rate_limit
     length = config.batch_length
     size = config.replay_size // 10 if is_eval else config.replay_size
+    seed = config.seed if hasattr(config, 'seed') else 0
     if config.replay == "uniform" or is_eval:
-        kw = {"online": config.replay_online}
+        kw = {"online": config.replay_online, "seed": seed}
         if rate_limit and config.run.train_ratio > 0:
             kw["samples_per_insert"] = config.run.train_ratio / config.batch_length
             kw["tolerance"] = 10 * config.batch_size
@@ -1141,11 +1142,11 @@ def make_replay(config, directory=None, is_eval=False, rate_limit=False, **kwarg
         replay = embodied.replay.NaiveChunks(length, size, directory)
     elif config.replay == "timebalanced":
         replay = embodied.replay.TimeBalanced(
-            length, size, directory, bias_factor=config.replay_bias_factor
+            length, size, directory, bias_factor=config.replay_bias_factor, seed=seed
         )
     elif config.replay == "timebalancednaive":
         replay = embodied.replay.TimeBalancedNaive(
-            length, size, directory, bias_factor=config.replay_bias_factor
+            length, size, directory, bias_factor=config.replay_bias_factor, seed=seed
         )
     elif config.replay == "efficienttimebalanced":
         replay = embodied.replay.EfficientTimeBalanced(
@@ -1153,6 +1154,7 @@ def make_replay(config, directory=None, is_eval=False, rate_limit=False, **kwarg
             size,
             directory,
             temperature=config.replay_temperature,
+            seed=seed,
         )
     else:
         raise NotImplementedError(config.replay)
