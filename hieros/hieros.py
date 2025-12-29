@@ -802,9 +802,20 @@ class Hieros(nn.Module):
                 for subgoal in subgoals
             ]
             subgoals = [subgoal.cpu().numpy() for subgoal in subgoals]
-            if len(subgoals[0].shape) < 4:
-                subgoals = [subgoal[None] for subgoal in subgoals]
+            # Add the cached image frame
             subgoals.append(self._img_cache[frame] / 255.0)
+            # Normalize all arrays to exactly 4 dimensions
+            for i in range(len(subgoals)):
+                # Add dimensions if < 4
+                while len(subgoals[i].shape) < 4:
+                    subgoals[i] = subgoals[i][None]
+                # Squeeze dimensions if > 4, removing size-1 dimensions
+                while len(subgoals[i].shape) > 4:
+                    subgoals[i] = subgoals[i].squeeze()
+                    # If still > 4 after squeeze, remove first dimension
+                    if len(subgoals[i].shape) > 4:
+                        subgoals[i] = subgoals[i][0]
+                        break
             full_frame = np.concatenate(subgoals, axis=1)
             frame_list[idx] = full_frame
         video = np.array(frame_list)
@@ -865,9 +876,20 @@ class Hieros(nn.Module):
                 for subgoal in subgoals_vis
             ]
             subgoals_vis = [subgoal.cpu().numpy() for subgoal in subgoals_vis]
-            if len(subgoals_vis) > 0 and len(subgoals_vis[0].shape) < 4:
-                subgoals_vis = [subgoal[None] for subgoal in subgoals_vis]
+            # Add the cached image frame
             subgoals_vis.append(self._img_cache[frame] / 255.0)
+            # Normalize all arrays to exactly 4 dimensions
+            for i in range(len(subgoals_vis)):
+                # Add dimensions if < 4
+                while len(subgoals_vis[i].shape) < 4:
+                    subgoals_vis[i] = subgoals_vis[i][None]
+                # Squeeze dimensions if > 4, removing size-1 dimensions
+                while len(subgoals_vis[i].shape) > 4:
+                    subgoals_vis[i] = subgoals_vis[i].squeeze()
+                    # If still > 4 after squeeze, remove first dimension
+                    if len(subgoals_vis[i].shape) > 4:
+                        subgoals_vis[i] = subgoals_vis[i][0]
+                        break
             full_frame = np.concatenate(subgoals_vis, axis=1)
             frame_list[idx] = full_frame
         video = np.array(frame_list)
