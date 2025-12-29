@@ -1,5 +1,10 @@
 # Hieros on Python 3.10
 
+0. For clean Ubuntu systems, first install build-essential and zlib development package:
+```
+sudo apt install build-essential zlib1g-dev -y
+```
+
 1. Environment Setup
 ```
 conda create -n hieros python=3.10 -y
@@ -12,7 +17,7 @@ conda install -c conda-forge wget unrar cmake zlib -y
 
 In repository root folder, run: 
 ```
-pip install "pip<24.0"
+pip install "setuptools==65.5.0" "pip<24" "wheel<0.40.0"
 pip install -r requirements.txt
 bash embodied/scripts/install-atari.sh
 ```
