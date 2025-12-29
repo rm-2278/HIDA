@@ -1400,35 +1400,22 @@ class SubActor(nn.Module):
         if self._config.subgoal_compression["encoding_symlog"]:
             state_representation = tools.symlog(state_representation)
         
-        # Handle both batched (time > 1) and singular (time = 1) cases
-        # Reshape subgoal: [batch, time, features] -> [batch*time, features]
+        # Flatten both tensors to [batch*time, features]
         batch_size = subgoal.shape[0]
         time_steps = subgoal.shape[1]
         reshaped_subgoal = subgoal.reshape(
             [batch_size * time_steps] + list(subgoal.shape[2:])
         )
-        
-        # Reshape state_representation to match: [batch, time, features'] -> [batch*time, features']
         if len(state_representation.shape) == 3:
             state_representation = state_representation.reshape(
                 [state_representation.shape[0] * state_representation.shape[1]] + list(state_representation.shape[2:])
             )
         
-        # Expand subgoal features to match state representation if needed
-        if reshaped_subgoal.shape[-1] < state_representation.shape[-1]:
-            # Pad with zeros to match feature dimension
-            padding_size = state_representation.shape[-1] - reshaped_subgoal.shape[-1]
-            padding = torch.zeros(
-                reshaped_subgoal.shape[0],
-                padding_size,
-                device=reshaped_subgoal.device
-            )
-            reshaped_subgoal = torch.cat([reshaped_subgoal, padding], dim=-1)
-        elif reshaped_subgoal.shape[-1] > state_representation.shape[-1]:
-            # Truncate to match
-            reshaped_subgoal = reshaped_subgoal[..., :state_representation.shape[-1]]
+        # Ensure both tensors have the same shape by broadcasting if needed
+        if reshaped_subgoal.shape != state_representation.shape:
+            # Use expand to broadcast along feature dimension if sizes are compatible
+            reshaped_subgoal = reshaped_subgoal.expand(state_representation.shape)
         
-        # Compute cosine similarity
         dims_to_sum = [-1]  # Sum over feature dimension
         gnorm = torch.norm(reshaped_subgoal, dim=dims_to_sum) + 1e-12
         fnorm = torch.norm(state_representation, dim=dims_to_sum) + 1e-12
