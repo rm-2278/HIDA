@@ -33,6 +33,144 @@ to_np = lambda x: x.detach().cpu().numpy()
 from tqdm import tqdm
 
 
+def debug_subgoal_visualization_shapes(
+    cached_subgoal,
+    subactor_state,
+    decoded_subgoal,
+    subgoal_with_time,
+    state_with_time,
+    subactor_idx,
+    enable_logging=True,
+):
+    """
+    Debug helper function for subgoal visualization tensor shapes.
+    
+    This function logs the shapes of tensors involved in subgoal reward computation
+    to help diagnose dimension mismatch errors.
+    
+    Args:
+        cached_subgoal: The cached subgoal tensor from the subgoal cache
+        subactor_state: The subactor state dict containing 'deter' and 'stoch' keys
+        decoded_subgoal: The decoded subgoal after passing through decode_subgoal
+        subgoal_with_time: The decoded subgoal with time dimension added
+        state_with_time: The state with time dimension added
+        subactor_idx: Index of the subactor being processed
+        enable_logging: Whether to print debug information
+    
+    Returns:
+        dict: Dictionary containing shape information for debugging
+    """
+    if not enable_logging:
+        return {}
+    
+    debug_info = {
+        "subactor_idx": subactor_idx,
+        "cached_subgoal_shape": list(cached_subgoal.shape),
+        "decoded_subgoal_shape": list(decoded_subgoal.shape),
+        "subgoal_with_time_shape": list(subgoal_with_time.shape),
+    }
+    
+    # Get shapes from subactor_state
+    if subactor_state and len(subactor_state) > 0:
+        state_dict = subactor_state[0]
+        debug_info["subactor_state_keys"] = list(state_dict.keys())
+        debug_info["subactor_state_shapes"] = {
+            k: list(v.shape) for k, v in state_dict.items()
+        }
+    
+    # Get shapes from state_with_time
+    debug_info["state_with_time_shapes"] = {
+        k: list(v.shape) for k, v in state_with_time.items()
+    }
+    
+    # Calculate expected batch size
+    if subactor_state and len(subactor_state) > 0:
+        state_dict = subactor_state[0]
+        if len(state_dict) > 0:
+            first_value = next(iter(state_dict.values()))
+            debug_info["batch_size"] = first_value.shape[0]
+    
+    print(f"\n{'='*80}")
+    print(f"DEBUG: Subgoal Visualization Shapes for Subactor {subactor_idx}")
+    print(f"{'='*80}")
+    print(f"Cached subgoal shape: {debug_info['cached_subgoal_shape']}")
+    print(f"  Expected: [batch_size, subgoal_dim_1, subgoal_dim_2]")
+    print(f"  Example: [4, 8, 8] or [64, 8, 8]")
+    print(f"\nDecoded subgoal shape: {debug_info['decoded_subgoal_shape']}")
+    print(f"  Expected: [batch_size, decoded_features]")
+    print(f"  Example: [4, 1280] or [64, 1280]")
+    print(f"\nSubgoal with time shape: {debug_info['subgoal_with_time_shape']}")
+    print(f"  Expected: [batch_size, 1, decoded_features]")
+    print(f"  Example: [4, 1, 1280] or [64, 1, 1280]")
+    
+    if "subactor_state_keys" in debug_info:
+        print(f"\nSubactor state keys: {debug_info['subactor_state_keys']}")
+        print(f"Subactor state shapes:")
+        for k, v in debug_info["subactor_state_shapes"].items():
+            print(f"  {k}: {v}")
+    
+    print(f"\nState with time shapes:")
+    for k, v in debug_info["state_with_time_shapes"].items():
+        print(f"  {k}: {v}")
+    
+    if "batch_size" in debug_info:
+        print(f"\nBatch size: {debug_info['batch_size']}")
+    
+    # Validate shapes
+    errors = []
+    if len(debug_info['cached_subgoal_shape']) != 3:
+        errors.append(
+            f"❌ cached_subgoal should have 3 dimensions, got {len(debug_info['cached_subgoal_shape'])}"
+        )
+    
+    if len(debug_info['decoded_subgoal_shape']) != 2:
+        errors.append(
+            f"❌ decoded_subgoal should have 2 dimensions [batch, features], got {len(debug_info['decoded_subgoal_shape'])}"
+        )
+    
+    if len(debug_info['subgoal_with_time_shape']) != 3:
+        errors.append(
+            f"❌ subgoal_with_time should have 3 dimensions [batch, time, features], got {len(debug_info['subgoal_with_time_shape'])}"
+        )
+    elif debug_info['subgoal_with_time_shape'][1] != 1:
+        errors.append(
+            f"❌ subgoal_with_time should have time dimension of size 1, got {debug_info['subgoal_with_time_shape'][1]}"
+        )
+    
+    # Check batch size consistency
+    if "batch_size" in debug_info:
+        expected_batch = debug_info["batch_size"]
+        if debug_info['cached_subgoal_shape'][0] != expected_batch:
+            errors.append(
+                f"❌ cached_subgoal batch size {debug_info['cached_subgoal_shape'][0]} "
+                f"doesn't match state batch size {expected_batch}"
+            )
+        if debug_info['decoded_subgoal_shape'][0] != expected_batch:
+            errors.append(
+                f"❌ decoded_subgoal batch size {debug_info['decoded_subgoal_shape'][0]} "
+                f"doesn't match state batch size {expected_batch}"
+            )
+        if debug_info['subgoal_with_time_shape'][0] != expected_batch:
+            errors.append(
+                f"❌ subgoal_with_time batch size {debug_info['subgoal_with_time_shape'][0]} "
+                f"doesn't match state batch size {expected_batch}"
+            )
+    
+    if errors:
+        print(f"\n{'!'*80}")
+        print("ERRORS DETECTED:")
+        for error in errors:
+            print(f"  {error}")
+        print(f"{'!'*80}\n")
+    else:
+        print(f"\n✅ All shapes are valid!")
+    
+    print(f"{'='*80}\n")
+    
+    debug_info["errors"] = errors
+    return debug_info
+
+
 class Hieros(nn.Module):
     def __init__(self, obs_space, act_space, config, prefilled_replay):
         super(Hieros, self).__init__()
@@ -393,6 +531,19 @@ class Hieros(nn.Module):
                             # Decode the compressed subgoal to full representation before computing reward
                             decoded_subgoal = subactor.decode_subgoal(cached_subgoal, isfirst=False)  # [batch, subgoal_features]
                             subgoal_with_time = decoded_subgoal.unsqueeze(1)  # [batch, subgoal_features] -> [batch, 1, subgoal_features]
+                            
+                            # Debug logging for tensor shapes (enabled when debug=True in config)
+                            if self._config.debug:
+                                debug_subgoal_visualization_shapes(
+                                    cached_subgoal=cached_subgoal,
+                                    subactor_state=subactor_state,
+                                    decoded_subgoal=decoded_subgoal,
+                                    subgoal_with_time=subgoal_with_time,
+                                    state_with_time=state_with_time,
+                                    subactor_idx=i,
+                                    enable_logging=True,
+                                )
+                            
                             reward = subactor._subgoal_reward(state_with_time, subgoal_with_time)
                             subgoal_rewards.append(reward.detach())
                         else:
@@ -404,6 +555,20 @@ class Hieros(nn.Module):
                 ) % self._config.subgoal_cache_size
         except Exception as e:
             print("Exception in hieros policy:", e)
+            # Enhanced error reporting for dimension mismatch errors
+            if "size" in str(e).lower() or "dimension" in str(e).lower():
+                print("\n" + "="*80)
+                print("ERROR: Tensor dimension mismatch detected!")
+                print("="*80)
+                print(f"Error message: {e}")
+                print("\nThis error often occurs when tensor shapes don't match.")
+                print("To debug, enable debug mode in config: debug: True")
+                print("This will print detailed shape information for all tensors.")
+                print("\nCommon causes:")
+                print("  1. Mismatch between cached_subgoal batch size and state batch size")
+                print("  2. Incorrect subgoal_shape in config")
+                print("  3. decode_subgoal function not handling shapes correctly")
+                print("="*80 + "\n")
             if "exception_count" not in self._metrics:
                 self._metrics["exception_count"] = 1
             else:
