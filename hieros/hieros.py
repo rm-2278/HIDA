@@ -389,7 +389,7 @@ class Hieros(nn.Module):
                             # Compute reward for this subactor's current state and subgoal
                             # _subgoal_reward expects [batch, time, ...] shaped tensors for compatibility
                             # with batched replay buffer data. Add time dimension (size=1) to match.
-                            state_with_time = {k: v.unsqueeze(1) for k, v in subactor_state[0].items()}
+                            state_with_time = {k: v.unsqueeze(1) for k, v in subactor_state[0].items()}  # [batch, feature] -> [batch, 1, feature]
                             subgoal_with_time = cached_subgoal.unsqueeze(1)  # [batch, *subgoal_shape] -> [batch, 1, *subgoal_shape]
                             reward = subactor._subgoal_reward(state_with_time, subgoal_with_time)
                             subgoal_rewards.append(reward.detach())
