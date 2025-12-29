@@ -1401,7 +1401,7 @@ class SubActor(nn.Module):
             state_representation = tools.symlog(state_representation)
         
         # Reshape subgoal to match state_representation dimensions
-        # Both should have shape [B, T, F] or [B*T, F]
+        # Both should have shape [B, T, F] or [B, F]
         if len(state_representation.shape) == 3:
             # state_representation is [B, T, F']
             if len(subgoal.shape) == 2:
@@ -1411,19 +1411,24 @@ class SubActor(nn.Module):
                 # subgoal is already [B, T, F]
                 reshaped_subgoal = subgoal
             else:
-                # Flatten to [B*T, F] format
+                raise ValueError(
+                    f"Unexpected subgoal shape {subgoal.shape} with 3D state_representation {state_representation.shape}"
+                )
+        else:
+            # state_representation is [B, F'] - flatten subgoal to match if needed
+            if len(subgoal.shape) == 3:
+                # Flatten subgoal: [B, T, F] -> [B*T, F]
                 reshaped_subgoal = subgoal.reshape(
                     [subgoal.shape[0] * subgoal.shape[1]] + list(subgoal.shape[2:])
                 )
-                # Then add time dim
-                reshaped_subgoal = reshaped_subgoal.unsqueeze(1)
-        else:
-            # state_representation is [B*T, F'] - flatten subgoal to match
-            if len(subgoal.shape) == 3:
-                reshaped_subgoal = subgoal.reshape(
-                    [subgoal.shape[0] * subgoal.shape[1]] + list(subgoal.shape[2:])
+                # Also flatten state_representation
+                state_representation = state_representation.unsqueeze(1)  # [B, F] -> [B, 1, F]
+                # Now both are 3D, convert both to 2D
+                state_representation = state_representation.reshape(
+                    [state_representation.shape[0] * state_representation.shape[1]] + list(state_representation.shape[2:])
                 )
             else:
+                # Both are already 2D [B, F]
                 reshaped_subgoal = subgoal
         
         # Broadcast/expand subgoal features to match state_representation if needed
@@ -1451,10 +1456,13 @@ class SubActor(nn.Module):
                 # Truncate to match
                 reshaped_subgoal = reshaped_subgoal[..., :state_representation.shape[-1]]
         
+        # Compute dims_to_sum based on tensor dimensions
+        # For 3D [B, T, F]: sum over dimension 2 (features)
+        # For 2D [B, F]: sum over dimension 1 (features)
         dims_to_sum = list(range(len(state_representation.shape)))[2:]
         if not dims_to_sum:
-            # If 2D tensors, use last dimension
-            dims_to_sum = [-1]
+            # For 2D tensors, sum over the last dimension (features)
+            dims_to_sum = [1]
             
         gnorm = torch.norm(reshaped_subgoal, dim=dims_to_sum) + 1e-12
         fnorm = torch.norm(state_representation, dim=dims_to_sum) + 1e-12
