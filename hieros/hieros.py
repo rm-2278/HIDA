@@ -532,6 +532,20 @@ class Hieros(nn.Module):
                             decoded_subgoal = subactor.decode_subgoal(cached_subgoal, isfirst=False)  # [batch, subgoal_features]
                             subgoal_with_time = decoded_subgoal.unsqueeze(1)  # [batch, subgoal_features] -> [batch, 1, subgoal_features]
                             
+                            # Ensure subgoal features match state representation features by padding if needed
+                            # get_subgoal extracts features from state, which may have more dimensions than decoded subgoal
+                            state_representation = subactor.get_subgoal(state_with_time)  # Get expected feature shape
+                            if subgoal_with_time.shape[-1] < state_representation.shape[-1]:
+                                # Pad subgoal to match state representation feature dimension
+                                padding_size = state_representation.shape[-1] - subgoal_with_time.shape[-1]
+                                padding = torch.zeros(
+                                    subgoal_with_time.shape[0],
+                                    subgoal_with_time.shape[1],
+                                    padding_size,
+                                    device=subgoal_with_time.device
+                                )
+                                subgoal_with_time = torch.cat([subgoal_with_time, padding], dim=-1)
+                            
                             # Debug logging for tensor shapes (enabled when debug=True in config)
                             if self._config.debug:
                                 debug_subgoal_visualization_shapes(
@@ -1399,55 +1413,15 @@ class SubActor(nn.Module):
         state_representation = self.get_subgoal(state)
         if self._config.subgoal_compression["encoding_symlog"]:
             state_representation = tools.symlog(state_representation)
-        
-        # Reshape subgoal to match state_representation dimensions
-        # Both should have shape [B, T, F] or [B, F]
-        if len(state_representation.shape) == 3:
-            # state_representation is [B, T, F']
-            if len(subgoal.shape) == 2:
-                # subgoal is [B, F] - add time dimension
-                reshaped_subgoal = subgoal.unsqueeze(1)  # [B, F] -> [B, 1, F]
-            elif len(subgoal.shape) == 3:
-                # subgoal is already [B, T, F]
-                reshaped_subgoal = subgoal
-            else:
-                raise ValueError(
-                    f"Unexpected subgoal shape {subgoal.shape} with 3D state_representation {state_representation.shape}"
-                )
-        else:
-            # state_representation is [B, F'] - ensure subgoal is also 2D
-            if len(subgoal.shape) == 3:
-                # Flatten subgoal: [B, T, F] -> [B*T, F]
-                reshaped_subgoal = subgoal.reshape(
-                    [subgoal.shape[0] * subgoal.shape[1]] + list(subgoal.shape[2:])
-                )
-            else:
-                # Both are already 2D [B, F]
-                reshaped_subgoal = subgoal
-        
-        # Handle feature dimension mismatch by padding with zeros
-        if reshaped_subgoal.shape[-1] != state_representation.shape[-1]:
-            if reshaped_subgoal.shape[-1] < state_representation.shape[-1]:
-                # Pad with zeros to match feature dimension
-                padding_size = state_representation.shape[-1] - reshaped_subgoal.shape[-1]
-                padding_shape = list(reshaped_subgoal.shape)
-                padding_shape[-1] = padding_size
-                padding = torch.zeros(padding_shape, device=reshaped_subgoal.device)
-                reshaped_subgoal = torch.cat([reshaped_subgoal, padding], dim=-1)
-            else:
-                # Truncate to match
-                reshaped_subgoal = reshaped_subgoal[..., :state_representation.shape[-1]]
-        
-        # Compute cosine similarity along feature dimensions
-        # For 3D [B, T, F]: sum over features (dim 2)
-        # For 2D [B, F]: sum over features (dim 1)
-        dims_to_sum = [-1]  # Last dimension is always features
-            
+        reshaped_subgoal = subgoal.reshape(
+            [subgoal.shape[0] * subgoal.shape[1]] + list(subgoal.shape[2:])
+        ).expand(state_representation.shape)
+        dims_to_sum = list(range(len(state_representation.shape)))[2:]
         gnorm = torch.norm(reshaped_subgoal, dim=dims_to_sum) + 1e-12
         fnorm = torch.norm(state_representation, dim=dims_to_sum) + 1e-12
         norm = torch.max(gnorm, fnorm)
         cos = torch.sum(reshaped_subgoal * state_representation, dim=dims_to_sum) / (
-            norm * norm  # Original algorithm uses max norm squared
+            norm * norm
         )
         subgoal_reward = torch.clamp(cos.unsqueeze(-1), min=0)
 
