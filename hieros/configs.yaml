@@ -282,7 +282,7 @@ pinpad:
   task: 'pinpad_three'
   steps: 4000000
   envs:
-    amount: 1
+    amount: 1*
   action_repeat: 1
   actor_dist: 'onehot'
   imag_gradient: 'reinforce'
