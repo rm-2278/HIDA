@@ -1399,10 +1399,63 @@ class SubActor(nn.Module):
         state_representation = self.get_subgoal(state)
         if self._config.subgoal_compression["encoding_symlog"]:
             state_representation = tools.symlog(state_representation)
-        reshaped_subgoal = subgoal.reshape(
-            [subgoal.shape[0] * subgoal.shape[1]] + list(subgoal.shape[2:])
-        ).expand(state_representation.shape)
+        
+        # Reshape subgoal to match state_representation dimensions
+        # Both should have shape [B, T, F] or [B*T, F]
+        if len(state_representation.shape) == 3:
+            # state_representation is [B, T, F']
+            if len(subgoal.shape) == 2:
+                # subgoal is [B, F] - add time dimension
+                reshaped_subgoal = subgoal.unsqueeze(1)  # [B, F] -> [B, 1, F]
+            elif len(subgoal.shape) == 3:
+                # subgoal is already [B, T, F]
+                reshaped_subgoal = subgoal
+            else:
+                # Flatten to [B*T, F] format
+                reshaped_subgoal = subgoal.reshape(
+                    [subgoal.shape[0] * subgoal.shape[1]] + list(subgoal.shape[2:])
+                )
+                # Then add time dim
+                reshaped_subgoal = reshaped_subgoal.unsqueeze(1)
+        else:
+            # state_representation is [B*T, F'] - flatten subgoal to match
+            if len(subgoal.shape) == 3:
+                reshaped_subgoal = subgoal.reshape(
+                    [subgoal.shape[0] * subgoal.shape[1]] + list(subgoal.shape[2:])
+                )
+            else:
+                reshaped_subgoal = subgoal
+        
+        # Broadcast/expand subgoal features to match state_representation if needed
+        if reshaped_subgoal.shape[-1] != state_representation.shape[-1]:
+            # Features don't match - use broadcasting/padding
+            # This handles cases where subgoal features < state features
+            if reshaped_subgoal.shape[-1] < state_representation.shape[-1]:
+                # Pad with zeros to match feature dimension
+                padding_size = state_representation.shape[-1] - reshaped_subgoal.shape[-1]
+                if len(reshaped_subgoal.shape) == 3:
+                    padding = torch.zeros(
+                        reshaped_subgoal.shape[0], 
+                        reshaped_subgoal.shape[1],
+                        padding_size,
+                        device=reshaped_subgoal.device
+                    )
+                else:
+                    padding = torch.zeros(
+                        reshaped_subgoal.shape[0],
+                        padding_size,
+                        device=reshaped_subgoal.device
+                    )
+                reshaped_subgoal = torch.cat([reshaped_subgoal, padding], dim=-1)
+            else:
+                # Truncate to match
+                reshaped_subgoal = reshaped_subgoal[..., :state_representation.shape[-1]]
+        
         dims_to_sum = list(range(len(state_representation.shape)))[2:]
+        if not dims_to_sum:
+            # If 2D tensors, use last dimension
+            dims_to_sum = [-1]
+            
         gnorm = torch.norm(reshaped_subgoal, dim=dims_to_sum) + 1e-12
         fnorm = torch.norm(state_representation, dim=dims_to_sum) + 1e-12
         norm = torch.max(gnorm, fnorm)
