@@ -101,6 +101,8 @@ class Hieros(nn.Module):
                     *obs_space["image"].shape,
                 )
             )
+            # Action cache for debug visualization
+            self._action_cache = [[] for _ in range(config.subgoal_cache_size)]
         self._subgoal_cache_idx = 0
         self._policy_metrics = {}
 
@@ -289,6 +291,7 @@ class Hieros(nn.Module):
         if len(state) < len(self._subactors):
             state.extend([None for _ in range(len(self._subactors) - len(state))])
         cached_subgoals = None
+        cached_actions = None
         try:
             for idx, (update, subactor) in enumerate(
                 zip(reversed(subactor_updates), reversed(self._subactors))
@@ -320,9 +323,14 @@ class Hieros(nn.Module):
                             (len(self._subactors) - 1, *subgoal.shape),
                             device=self._config.device,
                         )
+                        cached_actions = torch.zeros(
+                            (len(self._subactors) - 1, *subgoal.shape),
+                            device=self._config.device,
+                        )
                     cached_subgoals[idx] = subgoal.detach()
+                    cached_actions[idx] = subgoal.detach()
             if (
-                self._config.subgoal_visualization
+                (self._config.subgoal_visualization or self._config.subgoal_debug_visualization)
                 and mode in ["train", "explore"]
                 and self._image_in_obs
                 and cached_subgoals is not None
@@ -351,6 +359,24 @@ class Hieros(nn.Module):
                 self._img_cache[self._subgoal_cache_idx] = self._subactors[0]._obs[
                     "image"
                 ]
+                # Cache actions for debug visualization
+                if self._config.subgoal_debug_visualization:
+                    cached_actions = torch.cat(
+                        (
+                            torch.zeros(
+                                (
+                                    self._config.max_hierarchy - len(cached_actions) - 1,
+                                    self._config.envs["amount"],
+                                    *self._config.subgoal_shape,
+                                ),
+                                device=self._config.device,
+                            ),
+                            cached_actions.detach(),
+                        )
+                    )
+                    self._action_cache[self._subgoal_cache_idx] = [
+                        action.detach().unsqueeze(0) for action in cached_actions
+                    ]
                 self._subgoal_cache_idx = (
                     self._subgoal_cache_idx + 1
                 ) % self._config.subgoal_cache_size
@@ -508,6 +534,11 @@ class Hieros(nn.Module):
                     and len(self._det_cache[self._subgoal_cache_idx]) > 0
                 ):
                     report["subgoal_visualization"] = self._visualize_subgoals()
+                if (
+                    self._config.subgoal_debug_visualization
+                    and len(self._action_cache[self._subgoal_cache_idx]) > 0
+                ):
+                    report["subgoal_debug_visualization"] = self._visualize_subgoals_debug()
             report["video_generation_time"] = timer.elapsed_time
         report.update(self._metrics)
         report["num_subactors"] = len(self._subactors)
@@ -575,6 +606,67 @@ class Hieros(nn.Module):
                 subgoals = [subgoal[None] for subgoal in subgoals]
             subgoals.append(self._img_cache[frame] / 255.0)
             full_frame = np.concatenate(subgoals, axis=1)
+            frame_list[idx] = full_frame
+        video = np.array(frame_list)
+        video = np.swapaxes(video, 0, 1)
+        return self.format_video(video)
+
+    def _visualize_subgoals_debug(self):
+        print("creating debug video!")
+        # create video from subgoal cache showing fixed subgoal representation and actions
+        frame_num, num_subactors, num_envs, *subgoal_shape = self._subgoal_cache.shape
+        lowest_subactor = self._subactors[0]
+        frames = list(range(self._subgoal_cache_idx + 1, frame_num)) + list(
+            range(self._subgoal_cache_idx + 1)
+        )
+        image_shape = list(lowest_subactor._obs["image"].shape)
+
+        image_shape[1] *= len(self._subactors)
+        frame_list = np.zeros((len(frames), *image_shape))
+        for idx, frame in enumerate(frames):
+            if not self._action_cache[frame]:
+                continue
+            subgoals = []
+            for action_subgoal, subactor in zip(
+                self._action_cache[frame],
+                reversed(self._subactors[:-1]),
+            ):
+                # Decode the fixed subgoal (action) without adding stochastic state
+                decoded = subactor.decode_subgoal(action_subgoal.squeeze(0), isfirst=False).unsqueeze(0)
+                subgoals.append(decoded)
+            
+            # Visualize only the fixed deterministic representation
+            subgoals_vis = [
+                subactor._wm.decode_state(
+                    {
+                        "stoch": torch.zeros_like(subgoal)
+                        if self._config.subgoal["use_stoch"]
+                        else torch.zeros_like(self._stoch_cache[frame][i]),
+                        "deter": subgoal
+                        if self._config.subgoal["use_deter"]
+                        else self._det_cache[frame][i],
+                    }
+                )
+                for i, subgoal in enumerate(subgoals)
+            ]
+            subgoals_vis = [
+                subgoal[
+                    "image"
+                    if "image" in subgoal
+                    else ("stoch" if self._config.subgoal["use_stoch"] else "deter")
+                ]
+                for subgoal in subgoals_vis
+            ]
+            subgoals_vis = [subgoal.detach().squeeze() for subgoal in subgoals_vis]
+            subgoals_vis = [
+                (subgoal - subgoal.min()) / (subgoal.max() - subgoal.min() + 1e-8)
+                for subgoal in subgoals_vis
+            ]
+            subgoals_vis = [subgoal.cpu().numpy() for subgoal in subgoals_vis]
+            if len(subgoals_vis) > 0 and len(subgoals_vis[0].shape) < 4:
+                subgoals_vis = [subgoal[None] for subgoal in subgoals_vis]
+            subgoals_vis.append(self._img_cache[frame] / 255.0)
+            full_frame = np.concatenate(subgoals_vis, axis=1)
             frame_list[idx] = full_frame
         video = np.array(frame_list)
         video = np.swapaxes(video, 0, 1)
