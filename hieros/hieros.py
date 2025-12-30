@@ -1010,22 +1010,21 @@ class SubActor(nn.Module):
             raise ValueError(
                 "buffering observations is only supported when using a world model"
             )
+        
+        # Helper function to get layer-specific value from config
+        def get_layer_value(value, layer_idx):
+            """Get layer-specific value, supporting both single values and lists."""
+            if isinstance(value, (list, tuple)):
+                # Use layer-specific value if list, or last value if list is shorter
+                return value[min(layer_idx, len(value) - 1)]
+            return value
+        
         # Schedules
-        # Support both single value and per-layer list for actor_entropy
-        actor_entropy_value = config.actor_entropy
-        if isinstance(actor_entropy_value, (list, tuple)):
-            # Use layer-specific value if list, or last value if list is shorter
-            actor_entropy_value = actor_entropy_value[min(layer_idx, len(actor_entropy_value) - 1)]
-        config.actor_entropy = lambda x=actor_entropy_value: tools.schedule(
+        config.actor_entropy = lambda x=get_layer_value(config.actor_entropy, layer_idx): tools.schedule(
             x, self._step
         )
-        # Support both single value and per-layer list for actor_state_entropy
-        actor_state_entropy_value = config.actor_state_entropy
-        if isinstance(actor_state_entropy_value, (list, tuple)):
-            # Use layer-specific value if list, or last value if list is shorter
-            actor_state_entropy_value = actor_state_entropy_value[min(layer_idx, len(actor_state_entropy_value) - 1)]
         config.actor_state_entropy = (
-            lambda x=actor_state_entropy_value: tools.schedule(x, self._step)
+            lambda x=get_layer_value(config.actor_state_entropy, layer_idx): tools.schedule(x, self._step)
         )
         config.imag_gradient_mix = lambda x=config.imag_gradient_mix: tools.schedule(
             x, self._step
