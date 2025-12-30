@@ -160,4 +160,4 @@ cython_debug/
 #.idea/
 
 logs
-wandb
+wandbtest_position_heatmap.py
