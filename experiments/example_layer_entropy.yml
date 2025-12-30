@@ -1,19 +1,21 @@
 # Example: Layer-Specific Exploration Configuration
 #
 # This example demonstrates how to configure different exploration
-# (actor_entropy) values for each layer in the hierarchy.
+# parameters (actor_entropy, actor_state_entropy) for each layer in the hierarchy.
 #
 # Usage examples:
 #
 # 1. Single value (backward compatible):
 #    actor_entropy: '3e-4'
-#    All layers will use the same entropy value
+#    actor_state_entropy: 0.0
+#    All layers will use the same values
 #
 # 2. Per-layer values:
 #    actor_entropy: ['3e-4', '1e-3', '5e-3']
-#    Layer 0 (Subactor-0): 3e-4 (low exploration)
-#    Layer 1 (Subactor-1): 1e-3 (medium exploration)
-#    Layer 2 (Subactor-2): 5e-3 (high exploration)
+#    actor_state_entropy: [0.0, 0.1, 0.2]
+#    Layer 0 (Subactor-0): actor_entropy=3e-4, actor_state_entropy=0.0
+#    Layer 1 (Subactor-1): actor_entropy=1e-3, actor_state_entropy=0.1
+#    Layer 2 (Subactor-2): actor_entropy=5e-3, actor_state_entropy=0.2
 #
 # 3. If list is shorter than max_hierarchy:
 #    actor_entropy: ['3e-4', '1e-3']
@@ -37,6 +39,9 @@ command:
   # - "['1e-3', '5e-4', '3e-4']"
   # Example 3: Same exploration at all levels (backward compatible)
   # - "3e-4"
+  # Optional: Also configure actor_state_entropy per layer
+  # - --actor_state_entropy
+  # - "[0.0, 0.1, 0.2]"
   - ${args}
 
 method: grid

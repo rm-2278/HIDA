@@ -59,30 +59,52 @@ def test_list_values():
     class Config:
         def __init__(self):
             self.actor_entropy = ['3e-4', '1e-3', '5e-3']
-            self.actor_state_entropy = 0.0
+            self.actor_state_entropy = [0.0, 0.1, 0.2]
             self.imag_gradient_mix = '0.0'
     
     config = Config()
     
     print(f"Original config.actor_entropy: {config.actor_entropy}")
+    print(f"Original config.actor_state_entropy: {config.actor_state_entropy}")
     
-    expected_values = {
+    expected_entropy_values = {
         0: '3e-4',
         1: '1e-3',
         2: '5e-3',
     }
     
+    expected_state_entropy_values = {
+        0: 0.0,
+        1: 0.1,
+        2: 0.2,
+    }
+    
     all_passed = True
-    for layer_idx, expected in expected_values.items():
+    for layer_idx in range(3):
+        # Test actor_entropy
         actor_entropy_value = config.actor_entropy
-        
         if isinstance(actor_entropy_value, (list, tuple)):
             actor_entropy_value = actor_entropy_value[min(layer_idx, len(actor_entropy_value) - 1)]
         
-        print(f"Layer {layer_idx}: {actor_entropy_value} (expected: {expected})")
+        expected = expected_entropy_values[layer_idx]
+        print(f"Layer {layer_idx} actor_entropy: {actor_entropy_value} (expected: {expected})")
         
         if actor_entropy_value != expected:
             print(f"  ❌ FAILED: Expected {expected}, got {actor_entropy_value}")
+            all_passed = False
+        else:
+            print(f"  ✅ PASSED")
+        
+        # Test actor_state_entropy
+        actor_state_entropy_value = config.actor_state_entropy
+        if isinstance(actor_state_entropy_value, (list, tuple)):
+            actor_state_entropy_value = actor_state_entropy_value[min(layer_idx, len(actor_state_entropy_value) - 1)]
+        
+        expected_state = expected_state_entropy_values[layer_idx]
+        print(f"Layer {layer_idx} actor_state_entropy: {actor_state_entropy_value} (expected: {expected_state})")
+        
+        if actor_state_entropy_value != expected_state:
+            print(f"  ❌ FAILED: Expected {expected_state}, got {actor_state_entropy_value}")
             all_passed = False
         else:
             print(f"  ✅ PASSED")

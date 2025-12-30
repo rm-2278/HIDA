@@ -1019,8 +1019,13 @@ class SubActor(nn.Module):
         config.actor_entropy = lambda x=actor_entropy_value: tools.schedule(
             x, self._step
         )
+        # Support both single value and per-layer list for actor_state_entropy
+        actor_state_entropy_value = config.actor_state_entropy
+        if isinstance(actor_state_entropy_value, (list, tuple)):
+            # Use layer-specific value if list, or last value if list is shorter
+            actor_state_entropy_value = actor_state_entropy_value[min(layer_idx, len(actor_state_entropy_value) - 1)]
         config.actor_state_entropy = (
-            lambda x=config.actor_state_entropy: tools.schedule(x, self._step)
+            lambda x=actor_state_entropy_value: tools.schedule(x, self._step)
         )
         config.imag_gradient_mix = lambda x=config.imag_gradient_mix: tools.schedule(
             x, self._step
