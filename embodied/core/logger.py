@@ -230,12 +230,22 @@ class WandBOutput:
             elif len(value.shape) == 1:
                 bystep[step][name] = wandb.Histogram(value)
             elif len(value.shape) == 2:
-                value = np.clip(255 * value, 0, 255).astype(np.uint8)
-                value = np.transpose(value, [2, 0, 1])
+                # 2D image (grayscale) - convert to uint8 if needed
+                if np.issubdtype(value.dtype, np.floating):
+                    value = np.clip(255 * value, 0, 255).astype(np.uint8)
+                else:
+                    value = value.astype(np.uint8)
+                # wandb.Image expects HW or HWC format, not CHW
                 bystep[step][name] = wandb.Image(value)
             elif len(value.shape) == 3:
-                value = np.clip(255 * value, 0, 255).astype(np.uint8)
-                value = np.transpose(value, [2, 0, 1])
+                # 3D image (RGB/RGBA) - convert to uint8 if needed
+                # Ensure channels are in last dimension
+                assert value.shape[2] in [1, 3, 4], f"Expected channels in last dim, got shape: {value.shape}"
+                if np.issubdtype(value.dtype, np.floating):
+                    value = np.clip(255 * value, 0, 255).astype(np.uint8)
+                else:
+                    value = value.astype(np.uint8)
+                # wandb.Image expects HWC format (height, width, channels)
                 bystep[step][name] = wandb.Image(value)
             elif len(value.shape) == 4:
                 # Sanity check that the channeld dimension is last
