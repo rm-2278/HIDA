@@ -525,20 +525,12 @@ class Hieros(nn.Module):
                     ):
                         if subactor._compute_subgoal:
                             # Compute reward for this subactor's current state and subgoal
-                            # _subgoal_reward expects [batch, time, ...] shaped tensors for compatibility
-                            # with batched replay buffer data. Add time dimension (size=1) to match.
-                            # state_with_time = {k: v.unsqueeze(1) for k, v in subactor_state[0].items()}  # [batch, feature] -> [batch, 1, feature]
                             state_with_time = {
                                 k: v for k, v in subactor_state[0].items()
-                            } 
+                            }
                             # Decode the compressed subgoal to full representation before computing reward
                             decoded_subgoal = subactor.decode_subgoal(cached_subgoal, isfirst=False)  # [batch, subgoal_features]
                             subgoal_with_time = decoded_subgoal.unsqueeze(1)  # [batch, subgoal_features] -> [batch, 1, subgoal_features]
-
-                            for key, value in state_with_time.items():
-                                print(f"State with time - {key}: {value.shape}")
-                            print(subgoal_with_time.shape)
-                            
                             
                             # Debug logging for tensor shapes (enabled when debug=True in config)
                             if self._config.debug:
@@ -827,53 +819,64 @@ class Hieros(nn.Module):
             if not self._action_cache[frame]:
                 continue
             subgoals = []
-            subactors_list = []
-            for action_subgoal, subactor in zip(
+            # Use zip to align padded action_cache with unpadded deter/stoch caches
+            for action_subgoal, subactor, deter, stoch in zip(
                 self._action_cache[frame],
                 reversed(self._subactors[:-1]),
+                self._det_cache[frame],
+                self._stoch_cache[frame],
             ):
-                # Decode the fixed subgoal (action) without adding stochastic state
-                decoded = subactor.decode_subgoal(action_subgoal.squeeze(0), isfirst=False).unsqueeze(0)
-                subgoals.append(decoded)
-                subactors_list.append(subactor)
-            
-            # Visualize only the fixed deterministic representation
-            subgoals_vis = [
-                subactor._wm.decode_state(
-                    {
-                        "stoch": torch.zeros_like(subgoal)
-                        if self._config.subgoal["use_stoch"]
-                        else torch.zeros_like(self._stoch_cache[frame][i]),
-                        "deter": subgoal
-                        if self._config.subgoal["use_deter"]
-                        else self._det_cache[frame][i],
-                    }
+                # Decode the fixed subgoal (action) 
+                subgoals.append(
+                    subactor.decode_subgoal(action_subgoal.squeeze(0), isfirst=False).unsqueeze(0)
                 )
-                for i, (subgoal, subactor) in enumerate(zip(subgoals, subactors_list))
-            ]
-            subgoals_vis = [
-                subgoal[
-                    "image"
-                    if "image" in subgoal
-                    else ("stoch" if self._config.subgoal["use_stoch"] else "deter")
+                
+                # Visualize only the fixed deterministic representation (zeroing stoch if needed)
+                subgoals = [
+                    subactor._wm.decode_state(
+                        {
+                            "stoch": torch.zeros_like(subgoal)
+                            if self._config.subgoal["use_stoch"]
+                            else torch.zeros_like(stoch),
+                            "deter": subgoal
+                            if self._config.subgoal["use_deter"]
+                            else deter,
+                        }
+                    )
+                    for subgoal in subgoals
                 ]
-                for subgoal in subgoals_vis
-            ]
-            subgoals_vis = [subgoal.detach().squeeze() for subgoal in subgoals_vis]
-            subgoals_vis = [
+                subgoals = [
+                    subgoal[
+                        "image"
+                        if "image" in subgoal
+                        else ("stoch" if self._config.subgoal["use_stoch"] else "deter")
+                    ]
+                    for subgoal in subgoals
+                ]
+            
+            subgoals = [subgoal.detach().squeeze() for subgoal in subgoals]
+            subgoals = [
                 (subgoal - subgoal.min()) / (subgoal.max() - subgoal.min() + 1e-8)
-                for subgoal in subgoals_vis
+                for subgoal in subgoals
             ]
-            subgoals_vis = [subgoal.cpu().numpy() for subgoal in subgoals_vis]
-            if len(subgoals_vis) > 0 and len(subgoals_vis[0].shape) < 4:
-                subgoals_vis = [subgoal[None] for subgoal in subgoals_vis]
-            subgoals_vis.append(self._img_cache[frame] / 255.0)
-            full_frame = np.concatenate(subgoals_vis, axis=1)
+            subgoals = [subgoal.cpu().numpy() for subgoal in subgoals]
+            
+            if len(subgoals) > 0 and len(subgoals[0].shape) < 4:
+                subgoals = [subgoal[None] for subgoal in subgoals]
+            
+            # Convert img_cache to numpy and normalize
+            img_to_append = self._img_cache[frame]
+            if torch.is_tensor(img_to_append):
+                img_to_append = img_to_append.cpu().numpy()
+                
+            subgoals.append(img_to_append / 255.0)
+            full_frame = np.concatenate(subgoals, axis=1)
             frame_list[idx] = full_frame
+            
         video = np.array(frame_list)
         video = np.swapaxes(video, 0, 1)
         return self.format_video(video)
-
+    
     def _visualize_subgoal_rewards(self):
         """
         Visualize subgoal rewards over time for each subactor as a plot.
