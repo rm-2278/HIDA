@@ -1,3 +1,4 @@
+import ast
 import datetime
 import collections
 import io
@@ -763,6 +764,25 @@ def args_type(default):
     def parse_string(x):
         if default is None:
             return x
+        
+        # Handle string representations of lists like "['3e-4', '1e-3', '3e-3']"
+        # This must be checked before other type checks
+        x_stripped = x.strip()
+        if x_stripped.startswith('[') and x_stripped.endswith(']'):
+            try:
+                parsed = ast.literal_eval(x_stripped)
+                if isinstance(parsed, list):
+                    # Determine the element type from default
+                    if isinstance(default, (list, tuple)) and len(default) > 0:
+                        elem_default = default[0]
+                    else:
+                        elem_default = default
+                    # Convert each element using the inferred element type
+                    return tuple(args_type(elem_default)(str(y)) for y in parsed)
+            except (ValueError, SyntaxError):
+                # If parsing fails, continue with normal processing
+                pass
+        
         if isinstance(default, bool):
             return bool(["False", "True"].index(x))
         if isinstance(default, int):
