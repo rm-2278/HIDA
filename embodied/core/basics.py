@@ -21,7 +21,27 @@ CONVERSION = {
 }
 
 
+def _is_future(value):
+    """Check if a value is a Future object from worker.py."""
+    return (
+        hasattr(value, '__call__') and 
+        hasattr(value, '_receive') and 
+        hasattr(value, '_callid')
+    )
+
+
 def convert(value):
+    # Handle Future objects from worker.py by calling them to get the actual value
+    if _is_future(value):
+        value = value()
+    
+    # Handle lists that may contain Future objects
+    if isinstance(value, list) and len(value) > 0:
+        # Check if any element is a Future object first
+        if any(_is_future(x) for x in value):
+            # Only create new list if we found Future objects
+            value = [x() if _is_future(x) else x for x in value]
+    
     # if (
     #     isinstance(value, list)
     #     and all(isinstance(x, torch.Tensor) for x in value)
