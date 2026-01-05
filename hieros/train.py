@@ -404,11 +404,31 @@ if __name__ == "__main__":
             pass
         
         # Try boolean
-        if value_str.lower() in ('true', 'false', 'yes', 'no', '1', '0'):
-            return value_str.lower() in ('true', 'yes', '1')
+        if value_str.lower() in ('true', 'false', 'yes', 'no'):
+            return value_str.lower() in ('true', 'yes')
         
         # Return as string
         return value_str
+    
+    # Helper function to set nested dict value
+    def set_nested_dict(d, parts, value):
+        """Navigate dict structure and set value at path specified by parts"""
+        current = d
+        for part in parts[:-1]:
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+        current[parts[-1]] = value
+    
+    # Helper function to set nested namespace value
+    def set_nested_namespace(ns, parts, value):
+        """Navigate namespace structure and set value at path specified by parts"""
+        current = ns
+        for part in parts[:-1]:
+            if not hasattr(current, part):
+                setattr(current, part, argparse.Namespace())
+            current = getattr(current, part)
+        setattr(current, parts[-1], value)
     
     # Process unknown arguments that may contain dot notation (e.g., from wandb sweeps)
     # These are arguments like --env.pinpad-easy.reward_mode=decaying
@@ -418,10 +438,10 @@ if __name__ == "__main__":
         if arg.startswith('--'):
             # Handle both --key=value and --key value formats
             if '=' in arg:
-                key_part, value = arg[2:].split('=', 1)
+                dotted_key, value = arg[2:].split('=', 1)
                 i += 1
             else:
-                key_part = arg[2:]
+                dotted_key = arg[2:]
                 if i + 1 < len(unknown) and not unknown[i + 1].startswith('--'):
                     value = unknown[i + 1]
                     i += 2
@@ -431,49 +451,30 @@ if __name__ == "__main__":
                     i += 1
             
             # Convert hyphens to underscores (argparse standard)
-            key_part = key_part.replace('-', '_')
+            dotted_key = dotted_key.replace('-', '_')
             
             # Infer the type of the value
             typed_value = infer_value_type(value)
             
             # Handle dot notation: split and update nested structure
-            if '.' in key_part:
-                parts = key_part.split('.')
+            if '.' in dotted_key:
+                parts = dotted_key.split('.')
                 
                 # For the first part, check if it exists and is a dict
                 if hasattr(args, parts[0]):
                     first_obj = getattr(args, parts[0])
                     if isinstance(first_obj, dict):
                         # Navigate through dict structure
-                        current = first_obj
-                        for part in parts[1:-1]:
-                            if part not in current:
-                                current[part] = {}
-                            current = current[part]
-                        
-                        # Set the final value
-                        current[parts[-1]] = typed_value
+                        set_nested_dict(first_obj, parts[1:], typed_value)
                     else:
                         # Not a dict, treat as Namespace
-                        current = first_obj
-                        for part in parts[1:-1]:
-                            if not hasattr(current, part):
-                                setattr(current, part, argparse.Namespace())
-                            current = getattr(current, part)
-                        
-                        setattr(current, parts[-1], typed_value)
+                        set_nested_namespace(first_obj, parts[1:], typed_value)
                 else:
                     # First part doesn't exist, create Namespace structure
-                    current = args
-                    for part in parts[:-1]:
-                        if not hasattr(current, part):
-                            setattr(current, part, argparse.Namespace())
-                        current = getattr(current, part)
-                    
-                    setattr(current, parts[-1], typed_value)
+                    set_nested_namespace(args, parts, typed_value)
             else:
                 # Simple key without dots
-                setattr(args, key_part, typed_value)
+                setattr(args, dotted_key, typed_value)
         else:
             i += 1
 
