@@ -151,7 +151,9 @@ class PinPadEasy(embodied.Env):
         
         elif self.reward_mode == "decaying":
             # Time-decaying intermediate rewards based on tile visits
-            # First visit: full reward, subsequent visits: decayed reward
+            # First visit (tile_visits[tile]=0): full reward (decay_factor=1.0)
+            # Subsequent visits: decayed reward (decay_factor < 1.0)
+            # Increment happens after calculation so first visit gets full reward
             decay_factor = 1.0 / (1.0 + 0.1 * self.tile_visits[tile])
             self.tile_visits[tile] += 1
             return 1.0 * decay_factor
