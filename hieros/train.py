@@ -450,6 +450,10 @@ if __name__ == "__main__":
                     value = 'True'
                     i += 1
             
+            # Skip if key is empty (malformed argument like --=value)
+            if not dotted_key:
+                continue
+            
             # Convert hyphens to underscores (argparse standard)
             dotted_key = dotted_key.replace('-', '_')
             
