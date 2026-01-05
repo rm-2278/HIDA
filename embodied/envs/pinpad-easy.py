@@ -24,6 +24,8 @@ class PinPadEasy(embodied.Env):
         "decaying": "Time-decaying intermediate rewards",
         "sparse": "Only reward for completing full sequence",
         "progressive_steep": "Steeper exponential increase for later tiles",
+        "dense_guidance": "Step-wise rewards: +0.1 for moving toward target, -0.1 for wrong tile",
+        "progress_any": "Reward any tile that contributes to sequence progress",
     }
 
     def __init__(self, task, length=1000, seed=None, reward_mode="flat"):
@@ -45,12 +47,25 @@ class PinPadEasy(embodied.Env):
         self.pads = set(self.layout.flatten().tolist()) - set("* #\n")
         self.target = tuple(sorted(self.pads))
         self.spawns = []
+        # Precompute pad center positions for distance-based rewards
+        self.pad_positions = {}
         for (x, y), char in np.ndenumerate(self.layout):
             if char != "#":
                 self.spawns.append((x, y))
+            if char in self.pads:
+                if char not in self.pad_positions:
+                    self.pad_positions[char] = []
+                self.pad_positions[char].append((x, y))
+        # Compute center of each pad
+        self.pad_centers = {}
+        for pad, positions in self.pad_positions.items():
+            positions = np.array(positions)
+            self.pad_centers[pad] = (positions[:, 0].mean(), positions[:, 1].mean())
         self.reward_mode = reward_mode
         print(f'Created PinPadEasy env with sequence: {"->".join(self.target)}, reward_mode: {reward_mode}')
         self.sequence = collections.deque(maxlen=len(self.target))
+        # Track correctly visited tiles for progress_any mode
+        self.visited_correct_tiles = set()
         self.player = None
         self.steps = None
         self.done = None
@@ -84,6 +99,7 @@ class PinPadEasy(embodied.Env):
         if self.done or action["reset"]:
             self.player = self.spawns[self.random.randint(len(self.spawns))]
             self.sequence.clear()
+            self.visited_correct_tiles = set()
             self.steps = 0
             self.done = False
             self.countdown = 0
@@ -95,27 +111,89 @@ class PinPadEasy(embodied.Env):
             if self.countdown == 0:
                 self.player = self.spawns[self.random.randint(len(self.spawns))]
                 self.sequence.clear()
+                self.visited_correct_tiles = set()
+        
         reward = 0.0
+        old_pos = self.player
         move = [(0, 0), (0, 1), (0, -1), (1, 0), (-1, 0)][action["action"]]
         x = np.clip(self.player[0] + move[0], 0, 15)
         y = np.clip(self.player[1] + move[1], 0, 13)
         tile = self.layout[x][y]
+        
         if tile != "#":
             self.player = (x, y)
             # Track position visits
             self.position_visit_counts[x, y] += 1
+        
+        # For dense_guidance mode, compute distance-based rewards
+        if self.reward_mode == "dense_guidance":
+            reward += self._compute_dense_guidance_reward(old_pos, self.player, tile)
+        
         if tile in self.pads:
             if not self.sequence or self.sequence[-1] != tile:
                 self.sequence.append(tile)
-                # Intermediate reward based on reward_mode
-                if len(self.sequence) < len(self.target) and tile == self.target[len(self.sequence) - 1]:
-                    reward += self._compute_intermediate_reward(tile, len(self.sequence))
+                
+                # Handle different reward modes for tile visits
+                if self.reward_mode == "progress_any":
+                    # Give reward for any tile that's part of the target sequence
+                    # and hasn't been rewarded yet in this episode
+                    if tile in self.target and tile not in self.visited_correct_tiles:
+                        self.visited_correct_tiles.add(tile)
+                        # Give reward based on how many tiles collected so far
+                        reward += 1.0 + 0.5 * len(self.visited_correct_tiles)
+                elif self.reward_mode != "dense_guidance":
+                    # Standard intermediate reward for correct sequence
+                    if len(self.sequence) < len(self.target) and tile == self.target[len(self.sequence) - 1]:
+                        reward += self._compute_intermediate_reward(tile, len(self.sequence))
+        
         if tuple(self.sequence) == self.target and not self.countdown:
             reward += 10.0
             self.countdown = 10
         self.steps += 1
         self.done = self.done or (self.steps >= self.length)
         return self._obs(reward=reward, is_last=self.done)
+
+    def _compute_dense_guidance_reward(self, old_pos, new_pos, tile):
+        """
+        Compute step-wise guidance reward based on movement toward target tile.
+        
+        Args:
+            old_pos: Previous player position
+            new_pos: Current player position  
+            tile: The tile at the new position
+        
+        Returns:
+            float: Small positive/negative reward based on movement
+        """
+        # Determine the next target tile in the sequence
+        next_target_idx = len(self.sequence)
+        if next_target_idx >= len(self.target):
+            return 0.0  # Already completed
+        
+        next_target = self.target[next_target_idx]
+        target_center = self.pad_centers[next_target]
+        
+        # Calculate distances
+        old_dist = np.sqrt((old_pos[0] - target_center[0])**2 + (old_pos[1] - target_center[1])**2)
+        new_dist = np.sqrt((new_pos[0] - target_center[0])**2 + (new_pos[1] - target_center[1])**2)
+        
+        reward = 0.0
+        
+        # Small reward for moving closer to target
+        if new_dist < old_dist:
+            reward += 0.1
+        elif new_dist > old_dist:
+            reward -= 0.05  # Small penalty for moving away
+        
+        # Penalty for stepping on wrong tile
+        if tile in self.pads and tile != next_target:
+            reward -= 0.1
+        
+        # Bonus for reaching the correct target tile
+        if tile == next_target:
+            reward += 1.0
+        
+        return reward
 
     def _compute_intermediate_reward(self, tile, sequence_position):
         """

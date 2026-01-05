@@ -9,7 +9,7 @@ command:
   - rm_model_size
   - additional_inputs
   - --max_hierarchy
-  - "3"
+  - "2"
   - --subgoal_visualization
   - "True"
   - --wandb_logging
@@ -44,7 +44,7 @@ parameters:
       "pinpad-easy_four"
     ]
   env.pinpad-easy.reward_mode:
-    values: ["flat", "progressive", "progressive_steep", "sequence_bonus", "decaying", "sparse"]
+    values: ["flat", "progressive", "progressive_steep", "sequence_bonus", "decaying", "sparse", "dense_guidance", "progress_any"]
   subactor_update_every:
     values: [8, 16]
   train_ratio:
