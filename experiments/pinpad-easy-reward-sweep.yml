@@ -37,7 +37,7 @@ metric:
 name: pinpad-easy-reward-sweep
 parameters:
   seed:
-    values: [42, 41020, 718920]
+    values: [42]
   task:
     values: [
       "pinpad-easy_three",
@@ -46,8 +46,8 @@ parameters:
   env.pinpad-easy.reward_mode:
     values: ["flat", "progressive", "progressive_steep", "sequence_bonus", "decaying", "sparse", "dense_guidance", "progress_any"]
   subactor_update_every:
-    values: [8, 16]
+    values: [8]
   train_ratio:
-    values: [16, 32]
+    values: [32]
   
 program: hieros/train.py
