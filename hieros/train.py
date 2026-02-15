@@ -268,7 +268,8 @@ def make_env(config, env_index=0, **overrides):
         "loconav": "embodied.envs.loconav:LocoNav",
         "pinpad": "embodied.envs.pinpad:PinPad",
         "pinpad-easy": "embodied.envs.pinpad-easy:PinPadEasy",
-        "bsuite": "embodied.envs.bsuite:BSuite"
+        "bsuite": "embodied.envs.bsuite:BSuite",
+        "minigrid": "embodied.envs.minigrid:Minigrid",
     }[suite]
     if isinstance(ctor, str):
         module, cls = ctor.split(":")

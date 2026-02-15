@@ -180,11 +180,16 @@ class ProcessPipeWorker:
         try:
             callid = None
             state = None
-
             initializers = cloudpickle.loads(initializers)
             function = cloudpickle.loads(function)
             [fn() for fn in initializers]
-            while True:
+        except Exception:
+            stacktrace = "".join(traceback.format_exception(*sys.exc_info()))
+            print(f"Error during worker initialization: {stacktrace}.", flush=True)
+            return
+
+        while True:
+            try:
                 if not pipe.poll(0.1):
                     continue  # Wake up for keyboard interrupts.
                 message, callid, payload = pipe.recv()
@@ -198,18 +203,22 @@ class ProcessPipeWorker:
                     pipe.send((Message.RESULT, callid, result))
                 else:
                     raise KeyError(f"Invalid message: {message}")
-        except (EOFError, KeyboardInterrupt):
-            return
-        except Exception:
-            stacktrace = "".join(traceback.format_exception(*sys.exc_info()))
-            print(f"Error inside process worker: {stacktrace}.", flush=True)
-            pipe.send((Message.ERROR, callid, stacktrace))
-            return
-        finally:
-            try:
-                pipe.close()
-            except Exception:
-                pass
+            except (EOFError, KeyboardInterrupt):
+                return
+            except Exception as e:
+                stacktrace = "".join(traceback.format_exception(*sys.exc_info()))
+                if not isinstance(e, AttributeError):
+                    print(f"Error inside process worker: {stacktrace}.", flush=True)
+                if callid is not None:
+                    pipe.send((Message.ERROR, callid, stacktrace))
+            finally:
+                etype, _, _ = sys.exc_info()
+                if etype in (EOFError, KeyboardInterrupt):
+                    try:
+                        pipe.close()
+                    except Exception:
+                        pass
+                    return
 
 
 class Future:

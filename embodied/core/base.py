@@ -82,8 +82,7 @@ class Wrapper:
         try:
             return getattr(self.env, name)
         except AttributeError:
-            # raise AttributeError(name)
-            raise ValueError(name)
+            raise AttributeError(name)
 
 
 class Replay:

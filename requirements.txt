@@ -22,3 +22,4 @@ torch>=2.0.0
 tqdm==4.66.1
 moviepy==1.0.3
 dm_control==1.0.14
+gym-minigrid

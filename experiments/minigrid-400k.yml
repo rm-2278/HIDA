@@ -1,0 +1,43 @@
+command:
+  - ${env}
+  - ${interpreter}
+  - ${program}
+  - --configs
+  - minigrid
+  - s5_no_mlp
+  - s5_silu_act
+  - rm_model_size
+  - additional_inputs
+  - --max_hierarchy
+  - "2"
+  - --subgoal_visualization
+  - "True"
+  - --wandb_logging
+  - "True"
+  - --dynamics_model
+  - s5
+  - --novelty_reward_weight
+  - 0.3
+  - --use_subgoal
+  - True
+  - --decompress_subgoal_for_input
+  - False
+  - --subgoal_reward_weight
+  - 0.3
+  - ${args}
+
+method: grid
+metric:
+  goal: maximize
+  name: episode/score
+name: minigrid-400k
+parameters:
+  seed:
+    values: [42, 43, 44]
+  task:
+    values: [
+      "minigrid_MiniGrid-DoorKey-5x5-v0",
+      "minigrid_MiniGrid-Empty-8x8-v0"
+    ]
+
+program: hieros/train.py

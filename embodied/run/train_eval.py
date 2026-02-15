@@ -145,38 +145,37 @@ def train_eval(agent, train_env, eval_env, train_replay, eval_replay, logger, ar
             #             stats = env0.get_position_stats()
             #             logger.add(stats, prefix="exploration")
 
-            if hasattr(train_env, '_envs') and len(train_env._envs) > 0:
-                env0 = train_env._envs[0]
-                while not hasattr(env0, 'get_position_heatmap'):
-                    if hasattr(env0, 'env'):
-                        env0 = env0.env
-                    elif hasattr(env0, '_env'):
-                        env0 = env0._env
-                    else:
-                        break
+            if not hasattr(train_env, '_heatmap_env'):
+                train_env._heatmap_env = None
+                if hasattr(train_env, '_envs') and len(train_env._envs) > 0:
+                    try:
+                        env0 = train_env._envs[0]
+                        # Parallel proxy handles attribute lookups in the worker.
+                        # No need to unwrap, which is dangerous across processes.
+                        if hasattr(env0, 'get_position_heatmap'):
+                            train_env._heatmap_env = env0
+                    except Exception:
+                        pass
 
-                if hasattr(env0, 'get_position_heatmap'):
-                    heatmap_proxy = env0.get_position_heatmap()
-                    heatmap = heatmap_proxy.result() if hasattr(heatmap_proxy, 'result') else heatmap_proxy
-                    logger.add({"position_heatmap": heatmap}, prefix="exploration")
-                
-                if hasattr(env0, 'get_position_stats'):
-                    stats_proxy = env0.get_position_stats()
-                    print(stats_proxy)
-                    # if isinstance(stats, dict):
-                    # print("Logging exploration stats:", stats)
-                    # logger.add(stats, prefix="exploration")
+            if train_env._heatmap_env:
+                env0 = train_env._heatmap_env
+                try:
+                    if hasattr(env0, 'get_position_heatmap'):
+                        heatmap_proxy = env0.get_position_heatmap()
+                        heatmap = heatmap_proxy.result() if hasattr(heatmap_proxy, 'result') else heatmap_proxy
+                        logger.add({"position_heatmap": heatmap}, prefix="exploration")
                     
-                    if hasattr(stats_proxy, 'result'):
-                         stats = stats_proxy.result()
-                    elif hasattr(stats_proxy, '_receive') and hasattr(stats_proxy, '__call__'):
-                         stats = stats_proxy()
-                    else:
-                         stats = stats_proxy
-                    print(stats)
-
-                    # Now 'stats' is guaranteed to be a dict (not a Future), so logger.add won't crash
-                    logger.add(stats, prefix="exploration")
+                    if hasattr(env0, 'get_position_stats'):
+                        stats_proxy = env0.get_position_stats()
+                        if hasattr(stats_proxy, 'result'):
+                             stats = stats_proxy.result()
+                        elif hasattr(stats_proxy, '_receive') and hasattr(stats_proxy, '__call__'):
+                             stats = stats_proxy()
+                        else:
+                             stats = stats_proxy
+                        logger.add(stats, prefix="exploration")
+                except Exception:
+                    pass
             
             logger.write(fps=True)
 

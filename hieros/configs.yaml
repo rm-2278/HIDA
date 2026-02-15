@@ -298,6 +298,23 @@ pinpad:
   wandb_prefix: 'pyramidal'
   # model_name: "dreamer"
 
+pinpad-director:
+  steps: 400000
+  envs:
+    amount: 8
+  action_repeat: 1
+  actor_dist: 'onehot'
+  imag_gradient: 'reinforce'
+  eval_every: 100000
+  eval_eps: 10
+  log_every: 5000
+  batch_size: 8
+  batch_length: 16
+  train_ratio: 32
+  encoder: {mlp_keys: '$^', cnn_keys: 'image'}
+  decoder: {mlp_keys: '$^', cnn_keys: 'image'}
+  # debug: True
+
 pinpad-easy:
   steps: 400000
   envs:
@@ -338,7 +355,7 @@ pinpad-easy-director:
   # Increased from default 16 to 32 for better long-term planning in multi-step tasks
   imag_horizon: 32
   # Increased entropy for better exploration in discrete action spaces
-  actor_entropy: '1e-3'
+  actor_entropy: '3e-3'
   # wandb_logging: false
   wandb_name: 'pinpad-easy-director'
   encoder: {mlp_keys: '$^', cnn_keys: 'image'}
@@ -614,3 +631,20 @@ s5_smol_dynamics:
   s5:
     model_dim: 128
     state_dim: 64
+
+minigrid:
+  steps: 400000
+  envs:
+    amount: 8
+  action_repeat: 1
+  actor_dist: 'onehot'
+  imag_gradient: 'reinforce'
+  eval_every: 100000
+  eval_eps: 10
+  log_every: 5000
+  batch_size: 16
+  batch_length: 32
+  train_ratio: 32
+  wandb_name: 'minigrid'
+  encoder: {mlp_keys: '$^', cnn_keys: 'image'}
+  decoder: {mlp_keys: '$^', cnn_keys: 'image'}
