@@ -4,6 +4,9 @@ Example of using the debug function for custom debugging.
 
 This script shows how to use debug_subgoal_visualization_shapes()
 in your own debugging scenarios.
+
+Run from the repository root:
+    python docs/examples_debug_usage.py
 """
 
 import torch

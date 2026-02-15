@@ -78,13 +78,13 @@ Subgoal with time shape: [4, 1, 1280]
 
 ```bash
 # Structure tests (no dependencies)
-python test_debug_structure.py
+python tests/test_debug_structure.py
 
 # Functional tests (requires torch)
-python test_subgoal_debug.py
+python tests/test_subgoal_debug.py
 
 # Usage examples (requires torch)
-python examples_debug_usage.py
+python docs/examples_debug_usage.py
 ```
 
 ## Key Features
@@ -108,7 +108,7 @@ See `DEBUG_SUBGOAL_VISUALIZATION.md` for complete documentation including:
 All tests pass successfully:
 
 ```bash
-$ python test_debug_structure.py
+$ python tests/test_debug_structure.py
 ...
 🎉 All tests passed!
 Total: 4/4 tests passed

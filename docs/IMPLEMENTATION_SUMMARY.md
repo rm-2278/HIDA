@@ -166,7 +166,7 @@ All changes have been validated:
 $ python3 -m py_compile hieros/hieros.py
 ✅ Syntax check passed
 
-$ python3 test_debug_structure.py
+$ python3 tests/test_debug_structure.py
 ...
 🎉 All tests passed!
 Total: 4/4 tests passed
