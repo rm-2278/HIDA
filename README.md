@@ -1,59 +1,90 @@
-# HIDA
-Implementation of HIDA: Hierarchical Imagination with Dynamic Adaptation.
+# 階層的世界モデルHierosの実証的再評価
+# Empirical Re-evaluation of the Hierarchical World Model Hieros
 
-## Paper
+## 論文 / Paper
 
-This repository contains the experiments and data used in our paper. You can find the paper in the [docs folder](docs/paper.pdf).
+📄 **[論文PDF / Paper PDF](docs/paper.pdf)**
 
-The paper presents HIDA, a novel approach to hierarchical reinforcement learning that combines world models with hierarchical imagination. Our work addresses key challenges in hierarchical RL:
+このリポジトリは、論文「階層的世界モデルHierosの実証的再評価：内部表現解析と階層構造の影響分析」で使用した実験コードとデータを含んでいます。
 
-- **Dynamic Temporal Abstraction**: Learning when to abstract across different time scales
-- **Exploration Balancing**: Automatically adjusting exploration parameters across the hierarchy
-- **Non-stationarity**: Handling the non-stationary nature of higher-level policies
+This repository contains the experiments and data used in our paper "Empirical Re-evaluation of the Hierarchical World Model Hieros: Internal Representation Analysis and the Impact of Hierarchical Structure".
 
-## Members
+## 著者 / Authors
 
-shiropa-uk, t-yamada02, ziwoo3244
+- 三好理輝 (Riki Miyoshi) - ケンブリッジ大学 / University of Cambridge
+- 劉智優 (Ziwoo You) - 電気通信大学 / University of Electro-Communications  
+- 山田達也 (Tatsuya Yamada) - 大阪大学 / Osaka University
 
-## Overview
+## 概要 / Overview
 
-We propose:
-- A hierarchical model with dynamic temporal abstraction.
-- A model that automatically balances exploration parameters among hierarchy.
-- Addressing the non-stationary problem of higher layers using prioritised experience replay or hindsight relabeling inspired by [Gu et al. 18].
+### 日本語
 
-It is based on the implementation of the HIERarchical imagination On Structured State Space Sequence Models (HIEROS) paper in pytorch. Hieros repository is based on the [DreamerV3](https://github.com/danijar/dreamerv3), [DreamerV3 in pytorch](https://github.com/NM512/dreamerv3-torch) and [S5 in pytorch](https://github.com/i404788/s5-pytorch) repositories.
+階層的強化学習と世界モデルを結びつけた手法は、長期タスクの学習において期待されていますが、その実用性や内部メカニズムについては十分な検証がされていません。本研究では、階層的世界モデルの代表例である**Hieros**に着目し、性能評価と内部状態の可視化を通じてその実態を検証しました。
 
-## Benchmarks
+**主な発見：**
+- **ハイパーパラメータへの高い感度**: Visual Pinpad環境での実験により、Hierosはハイパーパラメータ設定に対して高い感度を示し、報酬設計や更新頻度の変更に対する頑健性に限界があることがわかりました
+- **単純な行動パターンの学習**: Atari環境での方策可視化では、高スコアを示しているにも関わらず単純な行動パターンのみが学習されており、階層性を活かしたサブゴールの学習が実現されていないことを確認しました
+- **階層数増加による学習不安定化**: 階層数の比較実験により、階層数の増加が学習の安定性を低下させることが確認されました
 
-We evaluate HIDA on multiple reinforcement learning benchmarks:
+これらの結果は、現在の階層的世界モデルにおいて理論的期待と実際の性能の間にギャップがあることを示しており、より頑健な階層的学習手法の必要性を示唆しています。
 
-- **Atari 100k**: A sample-efficient benchmark using 26 Atari games with only 100k environment interactions
-- **DeepMind Control Suite (DMC)**: Continuous control tasks for evaluating motor control capabilities
-- **MiniGrid**: Procedurally generated grid-world environments for testing generalization
-- **PinPad**: A sparse-reward environment designed to test hierarchical exploration
+### English
 
-## Experiments
+Hierarchical reinforcement learning combined with world models is a promising approach for learning long-horizon tasks, but its practical effectiveness and internal mechanisms have not been sufficiently validated. In this study, we focus on **Hieros**, a representative hierarchical world model, and examine its performance and internal state visualization.
+
+**Key Findings:**
+- **High Sensitivity to Hyperparameters**: Experiments in the Visual Pinpad environment revealed that Hieros is highly sensitive to hyperparameter settings and has limited robustness to changes in reward design and update frequency
+- **Learning of Simple Action Patterns**: Policy visualization in Atari environments confirmed that despite achieving high scores, only simple action patterns are learned, and subgoal learning utilizing hierarchy is not realized
+- **Decreased Learning Stability with More Hierarchy Levels**: Comparative experiments on the number of hierarchy levels confirmed that increasing the number of levels decreases learning stability
+
+These results indicate a gap between theoretical expectations and actual performance in current hierarchical world models, suggesting the need for more robust hierarchical learning methods.
+
+## 実験環境 / Experimental Environments
+
+本研究では以下の環境で評価を行いました / We evaluated on the following environments:
+
+- **Visual Pinpad**: エージェントが特定の順番でタイルを踏むタスク / A task where agents step on tiles in a specific order
+- **Pinpad-easy**: 末尾一致度に基づく報酬設計を導入した改良版 / An improved version with suffix-matching reward design
+- **Atari 100k**: Freeway, Breakout, Krull, Battle Zoneなど / Including Freeway, Breakout, Krull, Battle Zone, etc.
+
+## 実験内容 / Experiments
+
+`experiments/`ディレクトリには論文で使用した全ての実験設定とスクリプトが含まれています。
 
 The `experiments/` directory contains all experiment configurations and scripts used in the paper:
 
-- **Ablation Studies**: Configurations for testing individual components (e.g., `atari100k_experiment_no_stoch.yml`, `atari100k_experiment_no_intermediate.yml`)
-- **Hyperparameter Sweeps**: Sweeping configurations for finding optimal parameters (e.g., `atari100k_sweep.yml`)
-- **Hierarchical World Model Experiments**: Testing different hierarchy configurations (e.g., `atari100k_experiment_num_layers.yml`)
-- **Exploration Studies**: Evaluating different exploration strategies (e.g., `pinpad-easy-sparse-sweep.yml`, entropy control experiments)
+- **サブゴール更新頻度の変更 / Subgoal Update Frequency**: `subactor_update_every`パラメータの影響分析
+- **方策エントロピーの変更 / Policy Entropy**: 異なるエントロピー設定での探索範囲の変化
+- **報酬割り当て係数 / Reward Allocation Coefficients**: external reward, subgoal reward, intrinsic rewardの比率変更
+- **報酬設計の変更 / Reward Design**: flat, progressive, sparse, decayingなど7種類の報酬設計
+- **階層数の影響 / Hierarchy Level Impact**: `max_hierarchy`パラメータの影響分析
 
-## Reproducibility
+## 再現性 / Reproducibility
 
-To reproduce our results:
+実験結果を再現するには / To reproduce our results:
 
-1. Install dependencies following the [Installation](#installation) section
-2. Use the experiment configurations in `experiments/configs/` 
-3. Run experiments using the scripts in `experiments/scripts/`
-4. Visualize results using the notebooks in `notebooks/`
+1. 以下の[インストール](#installation)セクションに従って依存関係をインストール
+2. `experiments/configs/`の実験設定を使用
+3. `experiments/scripts/`のスクリプトで実験を実行
+4. `notebooks/`のノートブックで結果を可視化
 
-All training metrics are logged to TensorBoard for easy comparison and visualization.
+Install dependencies following the [Installation](#installation) section, use experiment configurations in `experiments/configs/`, run experiments using scripts in `experiments/scripts/`, and visualize results using notebooks in `notebooks/`.
 
-# Installation
+## ベースモデル / Base Model
+
+本実装はHIEROS (HIERarchical imagination On Structured State Space Sequence Models) のPyTorch実装に基づいています。
+
+This implementation is based on the PyTorch implementation of HIEROS (HIERarchical imagination On Structured State Space Sequence Models).
+
+参考リポジトリ / Reference repositories:
+- [Hieros](https://github.com/Snagnar/Hieros)
+- [Director](https://github.com/danijar/director)
+- [DreamerV3](https://github.com/danijar/dreamerv3)
+- [DreamerV3 in PyTorch](https://github.com/NM512/dreamerv3-torch)
+- [S5 in PyTorch](https://github.com/i404788/s5-pytorch)
+
+<a id="installation"></a>
+# インストール / Installation
 
 Install pip dependencies:
 ```
@@ -70,7 +101,7 @@ Install atari roms:
 bash embodied/scripts/install-atari.sh
 ```
 
-# Usage
+# 使用方法 / Usage
 
 To train a model on a atari game, run:
 ```
@@ -99,7 +130,7 @@ tensorboard --logdir=logs
 ```
 With these training statistics, you can also reproduce the plots in the paper.
 
-# Repository Structure
+# リポジトリ構成 / Repository Structure
 
 ```
 root/
@@ -138,7 +169,7 @@ root/
 └─ .gitignore               -- Files/folders not to push
 ```
 
-# Debugging Subgoal Visualization
+# デバッグ：サブゴール可視化 / Debugging Subgoal Visualization
 
 If you encounter tensor dimension mismatch errors when using `subgoal_debug_visualization: True`, we provide comprehensive debugging tools:
 
