@@ -6,13 +6,15 @@ This script tests the debug_subgoal_visualization_shapes function
 by simulating the tensor shapes involved in subgoal reward computation.
 
 Usage:
-    python test_subgoal_debug.py
+    Run from the repository root:
+    python tests/test_subgoal_debug.py
 """
 
 import sys
 import pathlib
 
-sys.path.append(str(pathlib.Path(__file__).parent / "hieros"))
+# Add repository root to path
+sys.path.insert(0, str(pathlib.Path(__file__).parent.parent))
 
 import torch
 from hieros.hieros import debug_subgoal_visualization_shapes

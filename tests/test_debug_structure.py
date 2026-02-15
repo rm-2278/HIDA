@@ -4,10 +4,19 @@ Simple syntax and structure test for the debug function.
 
 This test validates that the debug function is correctly defined
 and has the expected structure without requiring all dependencies.
+
+Usage:
+    Run from the repository root:
+    python tests/test_debug_structure.py
 """
 
 import ast
 import sys
+import pathlib
+
+# Get the repository root directory
+REPO_ROOT = pathlib.Path(__file__).parent.parent
+HIEROS_PY = REPO_ROOT / "hieros" / "hieros.py"
 
 
 def test_debug_function_exists():
@@ -16,7 +25,7 @@ def test_debug_function_exists():
     print("TEST: Checking if debug_subgoal_visualization_shapes exists")
     print("="*80)
     
-    with open("hieros/hieros.py", "r") as f:
+    with open(HIEROS_PY, "r") as f:
         content = f.read()
     
     # Parse the file
@@ -83,7 +92,7 @@ def test_debug_function_integration():
     print("TEST: Checking if debug function is integrated")
     print("="*80)
     
-    with open("hieros/hieros.py", "r") as f:
+    with open(HIEROS_PY, "r") as f:
         content = f.read()
     
     # Check if the function is called with debug config check
@@ -116,7 +125,7 @@ def test_enhanced_error_handling():
     print("TEST: Checking enhanced error handling")
     print("="*80)
     
-    with open("hieros/hieros.py", "r") as f:
+    with open(HIEROS_PY, "r") as f:
         content = f.read()
     
     # Check for enhanced error messages
@@ -149,7 +158,7 @@ def test_file_syntax():
     print("="*80)
     
     try:
-        with open("hieros/hieros.py", "r") as f:
+        with open(HIEROS_PY, "r") as f:
             content = f.read()
         ast.parse(content)
         print("✅ TEST PASSED: Valid Python syntax")

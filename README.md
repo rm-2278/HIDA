@@ -1,6 +1,12 @@
 # HIDA
 Implementation of HIDA: Hierarchical Imagination with Dynamic Adaptation.
 
+## Members
+
+shiropa-uk, t-yamada02, ziwoo3244
+
+## Overview
+
 We propose:
 - A hierarchical model with dynamic temporal abstraction.
 - A model that automatically balances exploration parameters among hierarchy.
@@ -54,14 +60,44 @@ tensorboard --logdir=logs
 ```
 With these training statistics, you can also reproduce the plots in the paper.
 
-# Repository
+# Repository Structure
 
-The repository is structured as follows:
-- `hieros/` contains the implementation and training code of the HIEROS model.
-- `embodied/` contains the implementation of some basic tools like logging, replay buffers, environments, etc. This is largely copied from [here](https://github.com/danijar/dreamerv3)
-- `resettable_s5/` contains our implementation of the resettable S5 model used for the S5WM. This is based on the [pytorch s5 implementation](https://github.com/i404788/s5-pytorch)
-- `experiments/` contains wandb sweep configurations for the experiments in the paper.
-- `sampler_visualization.py` contains code to visualize the sampling methods used in the paper (ETBS and the standard uniform sampling).
+```
+root/
+├─ docs/                    -- Documentation files
+│   ├─ *.md                 -- Markdown documentation
+│   └─ *.pdf                -- PDF reports and papers
+│
+├─ experiments/
+│   ├─ configs/             -- YAML/JSON experiment configurations
+│   ├─ results/             -- Experiment outputs (logs, metrics)
+│   └─ scripts/             -- Experiment launch scripts
+│
+├─ hieros/                  -- Implementation and training code of the HIEROS model
+│
+├─ embodied/                -- Basic tools (logging, replay buffers, environments)
+│                              Largely copied from DreamerV3
+│
+├─ resettable_s5/           -- Resettable S5 model implementation for S5WM
+│                              Based on pytorch S5 implementation
+│
+├─ tests/                   -- Test code (unit / smoke tests)
+│
+├─ data/
+│   ├─ raw/                 -- Raw data (not git managed)
+│   └─ processed/           -- Preprocessed data
+│
+├─ notebooks/               -- Analysis and visualization scripts
+│
+├─ docker/                  -- Docker files and container setup
+│
+├─ .github/                 -- GitHub workflows and templates
+│
+├─ README.md                -- This file
+├─ LICENSE
+├─ requirements.txt         -- Python dependencies
+└─ .gitignore               -- Files/folders not to push
+```
 
 # Debugging Subgoal Visualization
 
@@ -77,21 +113,21 @@ subgoal_debug_visualization: True
 This will log detailed tensor shape information to help diagnose issues.
 
 **Documentation:**
-- 📖 [Complete Debugging Guide](DEBUG_SUBGOAL_VISUALIZATION.md) - Detailed explanation of the issue and solutions
-- 📋 [Quick Reference](DEBUG_README.md) - Fast overview of debugging features
-- 📝 [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Technical details of the implementation
-- 💻 [Usage Examples](examples_debug_usage.py) - Practical code examples
+- 📖 [Complete Debugging Guide](docs/DEBUG_SUBGOAL_VISUALIZATION.md) - Detailed explanation of the issue and solutions
+- 📋 [Quick Reference](docs/DEBUG_README.md) - Fast overview of debugging features
+- 📝 [Implementation Summary](docs/IMPLEMENTATION_SUMMARY.md) - Technical details of the implementation
+- 💻 [Usage Examples](docs/examples_debug_usage.py) - Practical code examples
 
 **Tests:**
 ```bash
 # Run structure validation tests (no dependencies)
-python test_debug_structure.py
+python tests/test_debug_structure.py
 
 # Run functional tests (requires torch)
-python test_subgoal_debug.py
+python tests/test_subgoal_debug.py
 
 # Run usage examples (requires torch)
-python examples_debug_usage.py
+python docs/examples_debug_usage.py
 ```
 
-For more information, see [DEBUG_README.md](DEBUG_README.md).
+For more information, see [docs/DEBUG_README.md](docs/DEBUG_README.md).

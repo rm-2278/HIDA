@@ -197,7 +197,7 @@ Two test scripts are provided:
 ### 1. Structure Test (No Dependencies)
 
 ```bash
-python test_debug_structure.py
+python tests/test_debug_structure.py
 ```
 
 This validates:
@@ -209,7 +209,7 @@ This validates:
 ### 2. Functional Test (Requires torch)
 
 ```bash
-python test_subgoal_debug.py
+python tests/test_subgoal_debug.py
 ```
 
 This tests:
