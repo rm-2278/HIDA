@@ -9,12 +9,6 @@
 
 This repository contains the experiments and data used in our paper "Empirical Re-evaluation of the Hierarchical World Model Hieros: Internal Representation Analysis and the Impact of Hierarchical Structure".
 
-## 著者 / Authors
-
-- 三好理輝 (Riki Miyoshi) - ケンブリッジ大学 / University of Cambridge
-- 劉智優 (Ziwoo You) - 電気通信大学 / University of Electro-Communications  
-- 山田達也 (Tatsuya Yamada) - 大阪大学 / Osaka University
-
 ## 概要 / Overview
 
 ### 日本語
